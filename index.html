@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sistema de Estoque</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <h1>Sistema de Estoque</h1>
+        <p>Controle de produtos e movimentações</p>
+    </header>
+
+    <main>
+
+        <section class="dashboard">
+
+            <article class="card">
+                <h2>Produtos</h2>
+                <p id="totalProdutos">0</p>
+            </article>
+
+            <article class="card">
+                <h2>Unidades</h2>
+                <p id="totalUnidades">0</p>
+            </article>
+
+            <article class="card">
+                <h2>Estoque Baixo</h2>
+                <p id="estoqueBaixo">0</p>
+            </article>
+
+            <article class="card">
+                <h2>Valor do Estoque</h2>
+                <p id="valorEstoque">R$ 0,00</p>
+            </article>
+
+        </section>
+<section class="historico">
+
+    <div class="titulo-historico">
+        <h2>Histórico de Movimentações</h2>
+
+        <button id="limparHistorico">
+            Limpar histórico
+        </button>
+    </div>
+
+    <div class="tabela-container">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Produto</th>
+                    <th>Tipo</th>
+                    <th>Quantidade</th>
+                </tr>
+            </thead>
+
+            <tbody id="listaHistorico">
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+        <section class="cadastro">
+
+            <h2>Cadastrar Produto</h2>
+
+            <form id="formProduto">
+
+                <div>
+                    <label for="nome">Produto</label>
+
+                    <input
+                        type="text"
+                        id="nome"
+                        placeholder="Ex: Arroz"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="categoria">Categoria</label>
+
+                    <input
+                        type="text"
+                        id="categoria"
+                        placeholder="Ex: Alimentos"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="quantidade">Quantidade</label>
+
+                    <input
+                        type="number"
+                        id="quantidade"
+                        min="0"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="preco">Preço</label>
+
+                    <input
+                        type="number"
+                        id="preco"
+                        min="0"
+                        step="0.01"
+                        required
+                    >
+                </div>
+
+                <button type="submit">
+                    Cadastrar Produto
+                </button>
+
+            </form>
+
+        </section>
+
+        <section class="produtos">
+
+            <div class="titulo-produtos">
+
+                <h2>Produtos cadastrados</h2>
+
+                <input
+                    type="search"
+                    id="pesquisa"
+                    placeholder="Pesquisar produto..."
+                    aria-label="Pesquisar produto"
+                >
+
+            </div>
+
+            <div class="tabela-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Produto</th>
+                            <th>Categoria</th>
+                            <th>Quantidade</th>
+                            <th>Preço</th>
+                            <th>Total</th>
+                            <th>Ações</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="listaProdutos">
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
