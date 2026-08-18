@@ -1,0 +1,26 @@
+{
+  "name": "estoque",
+  "version": "1.0.0",
+  "description": "Sistema web para controle de produtos e movimentações de estoque, desenvolvido com HTML5, CSS3 e JavaScript puro (Vanilla JS). Todos os dados são salvos no localStorage do navegador, sem necessidade de backend ou banco de dados.",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kalleb2cardoso/estoque.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kalleb2cardoso/estoque/issues"
+  },
+  "homepage": "https://github.com/kalleb2cardoso/estoque#readme",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mysql2": "^3.23.3"
+  }
+}
