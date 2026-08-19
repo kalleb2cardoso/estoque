@@ -1,9 +1,16 @@
 {
   "name": "estoque",
   "version": "1.0.0",
-  "description": "Sistema web para controle de produtos e movimentações de estoque, desenvolvido com HTML5, CSS3 e JavaScript puro (Vanilla JS). Todos os dados são salvos no localStorage do navegador, sem necessidade de backend ou banco de dados.",
-  "main": "script.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0",
+    "express": "^5.0.0",
+    "mysql2": "^3.0.0"
+  }
+ "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
