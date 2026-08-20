@@ -341,123 +341,106 @@ function atualizarDashboard() {
 // CADASTRAR / EDITAR
 // ======================================
 
-formProduto.addEventListener(
-    "submit",
-    async function(event) {
+formProduto.addEventListener("submit", async function(event) {
 
-        event.preventDefault();
+    event.preventDefault();
 
+    const nome =
+        document.querySelector("#nome").value.trim();
 
-        const nome =
-            document.querySelector(
-                "#nome"
-            )
-            .value
-            .trim();
+    const categoria =
+        document.querySelector("#categoria").value.trim();
 
+    const quantidade =
+        Number(document.querySelector("#quantidade").value);
 
-        const categoria =
-            document.querySelector(
-                "#categoria"
-            )
-            .value
-            .trim();
+    const preco =
+        Number(document.querySelector("#preco").value);
 
+    const dados = {
+        nome,
+        categoria,
+        quantidade,
+        preco
+    };
 
-        const quantidade =
-            Number(
-                document.querySelector(
-                    "#quantidade"
-                ).value
+    try {
+
+        let resposta;
+
+        // EDITAR
+        if (produtoEditando !== null) {
+
+            resposta = await fetch(
+                `/produtos/${produtoEditando}`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify(dados)
+                }
             );
 
+        } else {
 
-        const preco =
-            Number(
-                document.querySelector(
-                    "#preco"
-                ).value
-            );
+            // CADASTRAR
+            resposta = await fetch("/produtos", {
+                method: "POST",
 
+                headers: {
+                    "Content-Type": "application/json"
+                },
 
-        const dados = {
-            nome,
-            categoria,
-            quantidade,
-            preco
-        };
+                body: JSON.stringify(dados)
+            });
+        }
 
+        const resultado = await resposta.json();
 
-        try {
-
-            if (
-                produtoEditando !== null
-            ) {
-
-                await fetch(
-                    `/produtos/${produtoEditando}`,
-                    {
-                        method: "PUT",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify(
-                                dados
-                            )
-                    }
-                );
-
-
-                produtoEditando = null;
-
-
-                document.querySelector(
-                    "form button[type='submit']"
-                ).textContent =
-                    "Cadastrar Produto";
-
-
-            } else {
-
-                await fetch(
-                    "/produtos",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify(
-                                dados
-                            )
-                    }
-                );
-            }
-
-
-            formProduto.reset();
-
-            await carregarProdutos();
-
-
-        } catch (erro) {
+        // SE O SERVIDOR RETORNAR ERRO
+        if (!resposta.ok) {
 
             console.error(
-                "Erro ao salvar produto:",
-                erro
+                "Erro do servidor:",
+                resultado
             );
 
-        }
-    }
-);
+            alert(
+                resultado.erro ||
+                "Erro ao salvar produto"
+            );
 
+            return;
+        }
+
+        // SUCESSO
+        alert(resultado.mensagem);
+
+        produtoEditando = null;
+
+        formProduto.reset();
+
+        document.querySelector(
+            "form button[type='submit']"
+        ).textContent = "Cadastrar Produto";
+
+        await carregarProdutos();
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao salvar produto:",
+            erro
+        );
+
+        alert(
+            "Erro ao conectar com o servidor."
+        );
+    }
+});
 
 // ======================================
 // EDITAR
@@ -582,6 +565,31 @@ async function entradaEstoque(id) {
     await carregarProdutos();
 
     await carregarHistorico();
+}
+// ======================================
+// SAIR DO SISTEMA
+// ======================================
+
+async function sair() {
+
+    try {
+
+        const resposta = await fetch('/logout', {
+            method: 'POST'
+        });
+
+        if (!resposta.ok) {
+            console.error('Erro ao sair do sistema');
+            return;
+        }
+
+        window.location.href = '/login.html';
+
+    } catch (erro) {
+
+        console.error('Erro ao sair:', erro);
+
+    }
 }
 
 

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Cadastro | Sistema de Estoque</title>
+
+    <link rel="stylesheet" href="auth.css">
+</head>
+
+<body>
+
+    <main class="auth-container">
+
+        <section class="auth-card">
+
+            <h1>Criar conta</h1>
+
+            <p>
+                Cadastre um usuário para acessar o sistema de estoque.
+            </p>
+
+            <form id="formCadastro">
+
+                <div class="campo">
+                    <label for="nomeUsuario">
+                        Nome
+                    </label>
+
+                    <input
+                        type="text"
+                        id="nomeUsuario"
+                        placeholder="Digite seu nome"
+                        required
+                    >
+                </div>
+
+                <div class="campo">
+                    <label for="emailUsuario">
+                        E-mail
+                    </label>
+
+                    <input
+                        type="email"
+                        id="emailUsuario"
+                        placeholder="Digite seu e-mail"
+                        required
+                    >
+                </div>
+
+                <div class="campo">
+                    <label for="senhaUsuario">
+                        Senha
+                    </label>
+
+                    <input
+                        type="password"
+                        id="senhaUsuario"
+                        placeholder="Digite sua senha"
+                        minlength="6"
+                        required
+                    >
+                </div>
+
+                <button type="submit">
+                    Cadastrar
+                </button>
+
+            </form>
+
+            <p id="mensagemCadastro"></p>
+
+            <p class="link-auth">
+                Já possui uma conta?
+
+                <a href="/login.html">
+                    Entrar
+                </a>
+            </p>
+
+        </section>
+
+    </main>
+
+
+    <script>
+        const formCadastro =
+            document.querySelector("#formCadastro");
+
+        const mensagemCadastro =
+            document.querySelector("#mensagemCadastro");
+
+
+        formCadastro.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                const nome =
+                    document
+                        .querySelector("#nomeUsuario")
+                        .value
+                        .trim();
+
+
+                const email =
+                    document
+                        .querySelector("#emailUsuario")
+                        .value
+                        .trim();
+
+
+                const senha =
+                    document
+                        .querySelector("#senhaUsuario")
+                        .value;
+
+
+                try {
+
+                    const resposta =
+                        await fetch("/cadastro", {
+
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+                                nome,
+                                email,
+                                senha
+                            })
+                        });
+
+
+                    const dados =
+                        await resposta.json();
+
+
+                    if (!resposta.ok) {
+
+                        mensagemCadastro.textContent =
+                            dados.erro ||
+                            "Erro ao cadastrar usuário";
+
+                        return;
+                    }
+
+
+                    mensagemCadastro.textContent =
+                        "Usuário cadastrado com sucesso!";
+
+
+                    formCadastro.reset();
+
+
+                    setTimeout(() => {
+
+                        window.location.href =
+                            "/login.html";
+
+                    }, 1200);
+
+
+                } catch (erro) {
+
+                    console.error(
+                        "Erro ao cadastrar:",
+                        erro
+                    );
+
+                    mensagemCadastro.textContent =
+                        "Não foi possível conectar ao servidor.";
+                }
+            }
+        );
+    </script>
+
+</body>
+
+</html>

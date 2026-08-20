@@ -2,11 +2,49 @@ require('dotenv').config();
 
 const express = require('express');
 const mysql = require('mysql2');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const path = require('path');
 
 const app = express();
 
+
+// ======================================
+// CONFIGURAÇÕES DO EXPRESS
+// ======================================
+
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.urlencoded({ extended: true }));
+
+
+// ======================================
+// SESSÃO
+// ======================================
+
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'estoque-secreto-2026',
+    resave: false,
+    saveUninitialized: false
+}));
+
+
+// ======================================
+// VERIFICAR LOGIN
+// ======================================
+
+function verificarLogin(req, res, next) {
+
+    if (!req.session.usuario) {
+        return res.redirect('/login.html');
+    }
+
+    next();
+}
+
+
+// ======================================
+// CONEXÃO COM MYSQL
+// ======================================
 
 const connection = mysql.createConnection({
     host: process.env.MYSQLHOST || process.env.DB_HOST,
@@ -17,6 +55,7 @@ const connection = mysql.createConnection({
 });
 
 connection.connect((erro) => {
+
     if (erro) {
         console.error('Erro ao conectar ao MySQL:', erro);
         return;
@@ -27,20 +66,256 @@ connection.connect((erro) => {
 
 
 // ======================================
+// PÁGINAS PÚBLICAS
+// ======================================
+
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/cadastro.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'cadastro.html'));
+});
+
+
+// ======================================
+// PÁGINA PRINCIPAL PROTEGIDA
+// ======================================
+
+app.get('/', verificarLogin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/index.html', verificarLogin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+
+// ======================================
+// ARQUIVOS CSS E JAVASCRIPT
+// ======================================
+
+app.get('/style.css', (req, res) => {
+    res.sendFile(path.join(__dirname, 'style.css'));
+});
+
+app.get('/script.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'script.js'));
+});
+
+app.get('/auth.css', (req, res) => {
+    res.sendFile(path.join(__dirname, 'auth.css'));
+});
+
+
+// ======================================
+// CADASTRO DE USUÁRIO
+// ======================================
+
+app.post('/cadastro', async (req, res) => {
+
+    const { nome, email, senha } = req.body;
+
+    if (!nome || !email || !senha) {
+        return res.status(400).json({
+            erro: 'Preencha todos os campos'
+        });
+    }
+
+    try {
+
+        const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+        const sql = `
+            INSERT INTO usuarios
+            (nome, email, senha)
+            VALUES (?, ?, ?)
+        `;
+
+        connection.query(
+            sql,
+            [nome, email, senhaCriptografada],
+            (erro) => {
+
+                if (erro) {
+
+                    console.error(erro);
+
+                    if (erro.code === 'ER_DUP_ENTRY') {
+                        return res.status(400).json({
+                            erro: 'Este e-mail já está cadastrado'
+                        });
+                    }
+
+                    return res.status(500).json({
+                        erro: 'Erro ao cadastrar usuário'
+                    });
+                }
+
+                res.status(201).json({
+                    mensagem: 'Usuário cadastrado com sucesso!'
+                });
+            }
+        );
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro interno'
+        });
+    }
+});
+
+
+// ======================================
+// LOGIN DO USUÁRIO
+// ======================================
+
+app.post('/login', (req, res) => {
+
+    const { email, senha } = req.body;
+
+    if (!email || !senha) {
+        return res.status(400).json({
+            erro: 'Informe e-mail e senha'
+        });
+    }
+
+    const sql = `
+        SELECT *
+        FROM usuarios
+        WHERE email = ?
+    `;
+
+    connection.query(
+        sql,
+        [email],
+        async (erro, resultados) => {
+
+            if (erro) {
+
+                console.error(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro no servidor'
+                });
+            }
+
+            if (resultados.length === 0) {
+
+                return res.status(401).json({
+                    erro: 'E-mail ou senha inválidos'
+                });
+            }
+
+            const usuario = resultados[0];
+
+            try {
+
+                const senhaCorreta = await bcrypt.compare(
+                    senha,
+                    usuario.senha
+                );
+
+                if (!senhaCorreta) {
+
+                    return res.status(401).json({
+                        erro: 'E-mail ou senha inválidos'
+                    });
+                }
+
+                req.session.usuario = {
+                    id: usuario.id,
+                    nome: usuario.nome,
+                    email: usuario.email
+                };
+
+                res.json({
+                    mensagem: 'Login realizado com sucesso!',
+                    usuario: {
+                        id: usuario.id,
+                        nome: usuario.nome,
+                        email: usuario.email
+                    }
+                });
+
+            } catch (erro) {
+
+                console.error(erro);
+
+                res.status(500).json({
+                    erro: 'Erro ao verificar senha'
+                });
+            }
+        }
+    );
+});
+
+
+// ======================================
+// VERIFICAR USUÁRIO LOGADO
+// ======================================
+
+app.get('/usuario-logado', (req, res) => {
+
+    if (!req.session.usuario) {
+        return res.status(401).json({
+            logado: false
+        });
+    }
+
+    res.json({
+        logado: true,
+        usuario: req.session.usuario
+    });
+});
+
+
+// ======================================
+// LOGOUT
+// ======================================
+
+app.post('/logout', (req, res) => {
+
+    req.session.destroy((erro) => {
+
+        if (erro) {
+
+            console.error(erro);
+
+            return res.status(500).json({
+                erro: 'Erro ao sair'
+            });
+        }
+
+        res.clearCookie('connect.sid');
+
+        res.json({
+            mensagem: 'Logout realizado com sucesso'
+        });
+    });
+});
+
+
+// ======================================
 // BUSCAR PRODUTOS
 // ======================================
 
-app.get('/produtos', (req, res) => {
+app.get('/produtos', verificarLogin, (req, res) => {
 
     const sql = `
         SELECT *
         FROM produtos
+        WHERE ativo = 1
         ORDER BY nome
     `;
 
     connection.query(sql, (erro, resultados) => {
 
         if (erro) {
+
             console.error(erro);
 
             return res.status(500).json({
@@ -54,10 +329,10 @@ app.get('/produtos', (req, res) => {
 
 
 // ======================================
-// CADASTRAR PRODUTO
+// CADASTRAR PRODUTO + AUDITORIA
 // ======================================
 
-app.post('/produtos', (req, res) => {
+app.post('/produtos', verificarLogin, (req, res) => {
 
     const {
         nome,
@@ -89,12 +364,47 @@ app.post('/produtos', (req, res) => {
         (erro, resultado) => {
 
             if (erro) {
+
                 console.error(erro);
 
                 return res.status(500).json({
                     erro: 'Erro ao cadastrar produto'
                 });
             }
+
+            const usuario = req.session.usuario;
+
+            const sqlAuditoria = `
+                INSERT INTO auditoria
+                (
+                    usuario_id,
+                    usuario_nome,
+                    acao,
+                    produto_id,
+                    descricao
+                )
+                VALUES (?, ?, ?, ?, ?)
+            `;
+
+            connection.query(
+                sqlAuditoria,
+                [
+                    usuario.id,
+                    usuario.nome,
+                    'CADASTRO',
+                    resultado.insertId,
+                    `Cadastrou o produto ${nome}`
+                ],
+                (erroAuditoria) => {
+
+                    if (erroAuditoria) {
+                        console.error(
+                            'Erro ao registrar auditoria:',
+                            erroAuditoria
+                        );
+                    }
+                }
+            );
 
             res.status(201).json({
                 mensagem: 'Produto cadastrado',
@@ -109,7 +419,7 @@ app.post('/produtos', (req, res) => {
 // EDITAR PRODUTO
 // ======================================
 
-app.put('/produtos/:id', (req, res) => {
+app.put('/produtos/:id', verificarLogin, (req, res) => {
 
     const id = req.params.id;
 
@@ -135,12 +445,53 @@ app.put('/produtos/:id', (req, res) => {
         (erro, resultado) => {
 
             if (erro) {
+
                 console.error(erro);
 
                 return res.status(500).json({
                     erro: 'Erro ao editar produto'
                 });
             }
+
+            if (resultado.affectedRows === 0) {
+                return res.status(404).json({
+                    erro: 'Produto não encontrado'
+                });
+            }
+
+            const usuario = req.session.usuario;
+
+            const sqlAuditoria = `
+                INSERT INTO auditoria
+                (
+                    usuario_id,
+                    usuario_nome,
+                    acao,
+                    produto_id,
+                    descricao
+                )
+                VALUES (?, ?, ?, ?, ?)
+            `;
+
+            connection.query(
+                sqlAuditoria,
+                [
+                    usuario.id,
+                    usuario.nome,
+                    'EDICAO',
+                    id,
+                    `Editou o produto ${nome}`
+                ],
+                (erroAuditoria) => {
+
+                    if (erroAuditoria) {
+                        console.error(
+                            'Erro ao registrar auditoria:',
+                            erroAuditoria
+                        );
+                    }
+                }
+            );
 
             res.json({
                 mensagem: 'Produto atualizado'
@@ -154,31 +505,97 @@ app.put('/produtos/:id', (req, res) => {
 // EXCLUIR PRODUTO
 // ======================================
 
-app.delete('/produtos/:id', (req, res) => {
+app.delete('/produtos/:id', verificarLogin, (req, res) => {
 
     const id = req.params.id;
 
-    const sql = `
-        DELETE FROM produtos
-        WHERE id = ?
-    `;
-
     connection.query(
-        sql,
+        'SELECT nome FROM produtos WHERE id = ? AND ativo = 1',
         [id],
-        (erro) => {
+        (erroBusca, produtos) => {
 
-            if (erro) {
-                console.error(erro);
+            if (erroBusca) {
+
+                console.error(erroBusca);
 
                 return res.status(500).json({
                     erro: 'Erro ao excluir produto'
                 });
             }
 
-            res.json({
-                mensagem: 'Produto excluído'
-            });
+            if (produtos.length === 0) {
+                return res.status(404).json({
+                    erro: 'Produto não encontrado'
+                });
+            }
+
+            const nome = produtos[0].nome;
+
+            const sql = `
+                UPDATE produtos
+                SET ativo = 0
+                WHERE id = ?
+            `;
+
+            connection.query(
+                sql,
+                [id],
+                (erro, resultado) => {
+
+                    if (erro) {
+
+                        console.error(erro);
+
+                        return res.status(500).json({
+                            erro: 'Erro ao excluir produto'
+                        });
+                    }
+
+                    if (resultado.affectedRows === 0) {
+                        return res.status(404).json({
+                            erro: 'Produto não encontrado'
+                        });
+                    }
+
+                    const usuario = req.session.usuario;
+
+                    const sqlAuditoria = `
+                        INSERT INTO auditoria
+                        (
+                            usuario_id,
+                            usuario_nome,
+                            acao,
+                            produto_id,
+                            descricao
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                    `;
+
+                    connection.query(
+                        sqlAuditoria,
+                        [
+                            usuario.id,
+                            usuario.nome,
+                            'EXCLUSAO',
+                            id,
+                            `Excluiu o produto ${nome}`
+                        ],
+                        (erroAuditoria) => {
+
+                            if (erroAuditoria) {
+                                console.error(
+                                    'Erro ao registrar auditoria:',
+                                    erroAuditoria
+                                );
+                            }
+                        }
+                    );
+
+                    res.json({
+                        mensagem: 'Produto excluído'
+                    });
+                }
+            );
         }
     );
 });
@@ -188,12 +605,13 @@ app.delete('/produtos/:id', (req, res) => {
 // ENTRADA DE ESTOQUE
 // ======================================
 
-app.post('/produtos/:id/entrada', (req, res) => {
+app.post('/produtos/:id/entrada', verificarLogin, (req, res) => {
 
     const id = req.params.id;
     const quantidade = Number(req.body.quantidade);
 
     if (!quantidade || quantidade <= 0) {
+
         return res.status(400).json({
             erro: 'Quantidade inválida'
         });
@@ -210,7 +628,17 @@ app.post('/produtos/:id/entrada', (req, res) => {
         [id],
         (erro, produtos) => {
 
-            if (erro || produtos.length === 0) {
+            if (erro) {
+
+                console.error(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro ao buscar produto'
+                });
+            }
+
+            if (produtos.length === 0) {
+
                 return res.status(404).json({
                     erro: 'Produto não encontrado'
                 });
@@ -230,6 +658,9 @@ app.post('/produtos/:id/entrada', (req, res) => {
                 (erro) => {
 
                     if (erro) {
+
+                        console.error(erro);
+
                         return res.status(500).json({
                             erro: 'Erro ao atualizar estoque'
                         });
@@ -247,11 +678,55 @@ app.post('/produtos/:id/entrada', (req, res) => {
                             id,
                             quantidade,
                             `Entrada de ${quantidade} unidade(s)`
-                        ]
+                        ],
+                        (erro) => {
+
+                            if (erro) {
+                                console.error(
+                                    'Erro ao registrar movimentação:',
+                                    erro
+                                );
+                            }
+                        }
+                    );
+
+                    const usuario = req.session.usuario;
+
+                    const sqlAuditoria = `
+                        INSERT INTO auditoria
+                        (
+                            usuario_id,
+                            usuario_nome,
+                            acao,
+                            produto_id,
+                            descricao
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                    `;
+
+                    connection.query(
+                        sqlAuditoria,
+                        [
+                            usuario.id,
+                            usuario.nome,
+                            'ENTRADA',
+                            id,
+                            `Entrada de ${quantidade} unidade(s) no produto ${produto.nome}`
+                        ],
+                        (erroAuditoria) => {
+
+                            if (erroAuditoria) {
+                                console.error(
+                                    'Erro ao registrar auditoria:',
+                                    erroAuditoria
+                                );
+                            }
+                        }
                     );
 
                     res.json({
-                        mensagem: `Entrada registrada para ${produto.nome}`
+                        mensagem:
+                            `Entrada registrada para ${produto.nome}`
                     });
                 }
             );
@@ -264,12 +739,13 @@ app.post('/produtos/:id/entrada', (req, res) => {
 // SAÍDA DE ESTOQUE
 // ======================================
 
-app.post('/produtos/:id/saida', (req, res) => {
+app.post('/produtos/:id/saida', verificarLogin, (req, res) => {
 
     const id = req.params.id;
     const quantidade = Number(req.body.quantidade);
 
     if (!quantidade || quantidade <= 0) {
+
         return res.status(400).json({
             erro: 'Quantidade inválida'
         });
@@ -286,7 +762,17 @@ app.post('/produtos/:id/saida', (req, res) => {
         [id],
         (erro, produtos) => {
 
-            if (erro || produtos.length === 0) {
+            if (erro) {
+
+                console.error(erro);
+
+                return res.status(500).json({
+                    erro: 'Erro ao buscar produto'
+                });
+            }
+
+            if (produtos.length === 0) {
+
                 return res.status(404).json({
                     erro: 'Produto não encontrado'
                 });
@@ -295,6 +781,7 @@ app.post('/produtos/:id/saida', (req, res) => {
             const produto = produtos[0];
 
             if (quantidade > produto.quantidade) {
+
                 return res.status(400).json({
                     erro: 'Quantidade maior que o estoque disponível'
                 });
@@ -312,6 +799,9 @@ app.post('/produtos/:id/saida', (req, res) => {
                 (erro) => {
 
                     if (erro) {
+
+                        console.error(erro);
+
                         return res.status(500).json({
                             erro: 'Erro ao atualizar estoque'
                         });
@@ -329,11 +819,55 @@ app.post('/produtos/:id/saida', (req, res) => {
                             id,
                             quantidade,
                             `Saída de ${quantidade} unidade(s)`
-                        ]
+                        ],
+                        (erro) => {
+
+                            if (erro) {
+                                console.error(
+                                    'Erro ao registrar movimentação:',
+                                    erro
+                                );
+                            }
+                        }
+                    );
+
+                    const usuario = req.session.usuario;
+
+                    const sqlAuditoria = `
+                        INSERT INTO auditoria
+                        (
+                            usuario_id,
+                            usuario_nome,
+                            acao,
+                            produto_id,
+                            descricao
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                    `;
+
+                    connection.query(
+                        sqlAuditoria,
+                        [
+                            usuario.id,
+                            usuario.nome,
+                            'SAIDA',
+                            id,
+                            `Saída de ${quantidade} unidade(s) no produto ${produto.nome}`
+                        ],
+                        (erroAuditoria) => {
+
+                            if (erroAuditoria) {
+                                console.error(
+                                    'Erro ao registrar auditoria:',
+                                    erroAuditoria
+                                );
+                            }
+                        }
                     );
 
                     res.json({
-                        mensagem: `Saída registrada para ${produto.nome}`
+                        mensagem:
+                            `Saída registrada para ${produto.nome}`
                     });
                 }
             );
@@ -346,7 +880,7 @@ app.post('/produtos/:id/saida', (req, res) => {
 // HISTÓRICO
 // ======================================
 
-app.get('/movimentacoes', (req, res) => {
+app.get('/movimentacoes', verificarLogin, (req, res) => {
 
     const sql = `
         SELECT
@@ -366,10 +900,39 @@ app.get('/movimentacoes', (req, res) => {
     connection.query(sql, (erro, resultados) => {
 
         if (erro) {
+
             console.error(erro);
 
             return res.status(500).json({
                 erro: 'Erro ao buscar movimentações'
+            });
+        }
+
+        res.json(resultados);
+    });
+});
+
+
+// ======================================
+// CONSULTAR AUDITORIA
+// ======================================
+
+app.get('/auditoria', verificarLogin, (req, res) => {
+
+    const sql = `
+        SELECT *
+        FROM auditoria
+        ORDER BY data_acao DESC
+    `;
+
+    connection.query(sql, (erro, resultados) => {
+
+        if (erro) {
+
+            console.error(erro);
+
+            return res.status(500).json({
+                erro: 'Erro ao buscar auditoria'
             });
         }
 
@@ -387,4 +950,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
-

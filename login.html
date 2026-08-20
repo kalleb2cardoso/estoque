@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Login | Sistema de Estoque</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f4f6f8;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitulo {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .campo {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 7px;
+            background: #222;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #444;
+        }
+
+        #mensagem {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="login-container">
+
+        <h1>Entrar</h1>
+
+        <p class="subtitulo">
+            Sistema de Estoque
+        </p>
+        <p>
+    Não possui conta?
+    <a href="/cadastro.html">
+        Cadastre-se
+    </a>
+</p>
+
+        <form id="formLogin">
+
+            <div class="campo">
+                <label for="email">E-mail</label>
+
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="Digite seu e-mail"
+                    required
+                >
+            </div>
+
+            <div class="campo">
+                <label for="senha">Senha</label>
+
+                <input
+                    type="password"
+                    id="senha"
+                    placeholder="Digite sua senha"
+                    required
+                >
+            </div>
+
+            <button type="submit">
+                Entrar
+            </button>
+
+        </form>
+
+        <p id="mensagem"></p>
+
+    </main>
+
+    <script>
+        const form = document.getElementById('formLogin');
+        const mensagem = document.getElementById('mensagem');
+
+        form.addEventListener('submit', async (event) => {
+
+            event.preventDefault();
+
+            const email =
+                document.getElementById('email').value;
+
+            const senha =
+                document.getElementById('senha').value;
+
+            try {
+
+                const resposta = await fetch('/login', {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+                        email,
+                        senha
+                    })
+                });
+
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    mensagem.textContent =
+                        dados.erro || 'Erro ao fazer login';
+
+                    return;
+                }
+
+                mensagem.textContent =
+                    'Login realizado com sucesso!';
+
+                setTimeout(() => {
+                    window.location.href = '/index.html';
+                }, 800);
+
+            } catch (erro) {
+
+                console.error(erro);
+
+                mensagem.textContent =
+                    'Não foi possível conectar ao servidor.';
+            }
+
+        });
+    </script>
+
+</body>
+
+</html>
